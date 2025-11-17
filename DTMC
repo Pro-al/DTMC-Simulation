@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib.pyplot as plt
+# ----------------------------------------
+# 1. Define transition matrix (DTMC)
+# ----------------------------------------
+P = np.array([
+    [0.92, 0.06, 0.02],   # Good -> (G,D,E)
+    [0.10, 0.80, 0.10],   # Degraded -> (G,D,E)
+    [0.00, 0.20, 0.80]    # Error -> (G,D,E)
+])
+states = ["Good", "Degraded", "Error"]
+# ----------------------------------------
+# 2. Simulation parameters
+# ----------------------------------------
+T = 50        # number of time steps
+pi0 = np.array([1.0, 0.0, 0.0])   # Start in Good state
+pi_t = [pi0]
+# ----------------------------------------
+# 3. Dynamic simulation of system states
+# ----------------------------------------
+for t in range(1, T):
+    pi_next = pi_t[-1] @ P
+    pi_t.append(pi_next)
+pi_t = np.array(pi_t)
+# ----------------------------------------
+# 4. Plot dynamic probability evolution
+# ----------------------------------------
+plt.figure(figsize=(10, 6))
+plt.plot(pi_t[:, 0], label="Good")
+plt.plot(pi_t[:, 1], label="Degraded")
+plt.plot(pi_t[:, 2], label="Error")
+plt.title("State Probability Evolution Over Time")
+plt.xlabel("Time Steps")
+plt.ylabel("Probability")
+plt.legend()
+plt.grid(True)
+plt.show()
+# ----------------------------------------
+# 5. Compute steady-state distribution
+# ----------------------------------------
+# Solve: πP = π  ->  (P.T - I)π = 0
+A = P.T - np.eye(3)
+A[:, 0] = 1  # replace column to impose π1 + π2 + π3 = 1
+b = np.zeros(3)
+b[0] = 1
+pi_ss = np.linalg.solve(A, b)
+print("STEADY-STATE PROBABILITIES:")
+for s, p in zip(states, pi_ss):
+    print(f"{s:<10}: {p:.4f}")
+# ----------------------------------------
+# 6. Pie chart of steady-state distribution
+# ----------------------------------------
+plt.figure(figsize=(7, 7))
+plt.pie(pi_ss, labels=states, autopct='%1.1f%%')
+plt.title("Steady-State Probability Distribution")
+plt.show()
