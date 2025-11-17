@@ -1,1 +1,117 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import expm
+
+# ----------------------------------------
+# 1. Define CTMC generator matrix Q
+# ----------------------------------------
+# States: 0 = Good, 1 = Degraded, 2 = Error
+
+Q = np.array([
+    [-0.15, 0.12, 0.03],   # Good -> (D,E)
+    [0.08, -0.14, 0.06],   # Degraded -> (G,E)
+    [0.00, 0.10, -0.10]    # Error -> (D)
+])
+
+states = ["Good", "Degraded", "Error"]
+
+# ----------------------------------------
+# 2. Time axis for probability evolution
+# ----------------------------------------
+
+T = 30        # total time (minutes)
+dt = 0.5      # time step
+times = np.arange(0, T + dt, dt)
+
+# initial distribution (start in Good)
+pi0 = np.array([1.0, 0.0, 0.0])
+
+# ----------------------------------------
+# 3. Compute probability evolution over time
+# ----------------------------------------
+
+pi_t = []
+for t in times:
+    P_t = expm(Q * t)       # state-transition matrix for time t
+    pi_t.append(pi0 @ P_t)
+
+pi_t = np.array(pi_t)
+
+# ----------------------------------------
+# 4. Plot dynamic probability curves
+# ----------------------------------------
+
+plt.figure(figsize=(10, 6))
+plt.plot(times, pi_t[:, 0], label="Good")
+plt.plot(times, pi_t[:, 1], label="Degraded")
+plt.plot(times, pi_t[:, 2], label="Error")
+plt.xlabel("Time (minutes)")
+plt.ylabel("Probability")
+plt.title("CTMC State Probabilities Over Time")
+plt.grid(True)
+plt.legend()
+plt.show()
+
+# ----------------------------------------
+# 5. Compute steady-state probabilities
+# Solve πQ = 0 with constraint sum(π)=1
+# ----------------------------------------
+
+A = Q.T.copy()
+A[-1] = np.ones(3)        # replace last equation with π1+π2+π3=1
+b = np.zeros(3)
+b[-1] = 1
+
+pi_ss = np.linalg.solve(A, b)
+
+print("\nSTEADY-STATE PROBABILITIES (CTMC):")
+for s, p in zip(states, pi_ss):
+    print(f"{s:<10}: {p:.4f}")
+
+# ----------------------------------------
+# 6. Pie chart of steady-state distribution
+# ----------------------------------------
+
+plt.figure(figsize=(7, 7))
+plt.pie(pi_ss, labels=states, autopct="%1.1f%%")
+plt.title("Steady-State Distribution of CTMC")
+plt.show()
+
+# ----------------------------------------
+# 7. Monte Carlo Simulation of CTMC Trajectory
+# ----------------------------------------
+
+def simulate_ctmc(Q, t_max, start_state=0):
+    state = start_state
+    t = 0
+    timeline = [(t, state)]
+
+    while t < t_max:
+        rate = -Q[state, state]        # leaving rate λ
+        if rate <= 0:
+            break
+
+        # sample holding time (exponential)
+        dt = np.random.exponential(scale=1.0/rate)
+        t += dt
+        if t > t_max:
+            break
+
+        # choose next state by transitions
+        probs = Q[state].copy()
+        probs[state] = 0
+        probs = probs / probs.sum()
+
+        next_state = np.random.choice(len(states), p=probs)
+        state = next_state
+        timeline.append((t, state))
+
+    return timeline
+
+
+# Run one sample trajectory
+trajectory = simulate_ctmc(Q, 30)
+
+print("\nSample CTMC Trajectory (time, state):")
+print(trajectory)
 
